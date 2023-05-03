@@ -111,9 +111,9 @@ def transition(x, y, action):
     move = get_move_dir(action)
     next_x, next_y = move_action(x, y, move)
     reward = rewards[x][y]
-    return next_x, next_y, reward
+    return next_x, next_y, reward, move
 
-def run_episode():
+def run_episode(ep_num):
     x, y = 0, 0
     sequences = []
     total_reward = 0
@@ -122,21 +122,22 @@ def run_episode():
         visited_states[start_state] += 1
 
         action = policy[x][y]
-        next_x, next_y, reward = transition(x, y, action)
+        next_x, next_y, reward, move = transition(x, y, action)
         total_reward += reward
         next_state = convert_xy_to_state_num(next_x, next_y)
-        sequence = f"({start_state},{action},{total_reward})"
+        sequence = f"({start_state},{move},{reward})"
         sequences.append(sequence)
         x, y = next_x, next_y
         if next_x == 3 and next_y == 3:
             visited_states[next_state] += 1
             total_reward += rewards[x][y]
+            reward = rewards[x][y]
             break
 
 
 
-    sequences.append(f"({next_state},o,{total_reward})")
-    print(sequences)
+    sequences.append(f"({next_state},o,{reward})")
+    print(f"Episode {ep_num + 1}: {{{','.join(sequences)}}} (total reward {total_reward})")
 
 def convert_xy_to_state_num(x, y):
     """
@@ -150,14 +151,19 @@ def convert_xy_to_state_num(x, y):
     return f"s{num}"
 
 def plot_visits():
+    """
+    Create histogram showing number of times each state was visited
+    :return:
+    """
     plt.clf()
-    # plt.hist(visited_states, rwidth=0.7)
+    plt.title(f"State Visits Using Fixed Policy With {NUM_EPISODES} Episodes")
     plt.bar(list(visited_states.keys()), visited_states.values())
     plt.xlabel("State")
     plt.ylabel("Number of Visits")
-    plt.show()
-
-    rwidth = 0.7
+    # plt.show()
+    fname = "gridworld-hist.png"
+    plt.savefig(fname)
+    print(f"Histogram saved to {fname}")
 
 def main():
     """
@@ -165,8 +171,13 @@ def main():
     :return:
     """
     for i in range(NUM_EPISODES):
-        run_episode()
-    print(visited_states)
+        run_episode(i)
+    print("Episode policy/action key:")
+    print("\t> = move right")
+    print("\tv = move down")
+    print("\t< = move left")
+    print("\t^ = move up")
+    print("\to = remain/goal state")
     plot_visits()
     print("DONE")
 
