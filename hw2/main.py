@@ -125,7 +125,9 @@ def run_episode(ep_num):
         next_x, next_y, reward, move = transition(x, y, action)
         total_reward += reward
         next_state = convert_xy_to_state_num(next_x, next_y)
-        sequence = f"({start_state},{move},{reward})"
+        state_str = get_state_str(x, y)
+        move_str = get_move_string(move)
+        sequence = f"({state_str},{get_move_string(action)},{reward})"
         sequences.append(sequence)
         x, y = next_x, next_y
         if next_x == 3 and next_y == 3:
@@ -136,8 +138,9 @@ def run_episode(ep_num):
 
 
 
-    sequences.append(f"({next_state},o,{reward})")
-    print(f"Episode {ep_num + 1}: {{{','.join(sequences)}}} (total reward {total_reward})")
+    sequences.append(f"({get_state_str(3, 3)},{get_move_string('o')},{reward})")
+    # print(f"Episode {ep_num + 1}: {{{','.join(sequences)}}} (total reward {total_reward})")
+    print(f"{ep_num + 1} &  \\{{{','.join(sequences)}\\}} \\\\")
 
 def convert_xy_to_state_num(x, y):
     """
@@ -149,6 +152,22 @@ def convert_xy_to_state_num(x, y):
     """
     num = x * 4 + y
     return f"s{num}"
+
+def get_state_str(x, y):
+    num = x * 4 + y
+    return f"$s_{num}$"
+
+def get_move_string(action):
+    mapping = {
+        ">": "Rt",
+        "v": "Dn",
+        "<": "Lt",
+        "^": "Up",
+        "o": "St"
+    }
+    if action in mapping:
+        return mapping[action]
+    raise Exception(f"Bad move: {action}")
 
 def plot_visits():
     """
@@ -170,14 +189,15 @@ def main():
     Main func: run NUM_EPISODES episodes with the fixed policy
     :return:
     """
+    print("Table for Latex report:")
     for i in range(NUM_EPISODES):
         run_episode(i)
     print("Episode policy/action key:")
-    print("\t> = move right")
-    print("\tv = move down")
-    print("\t< = move left")
-    print("\t^ = move up")
-    print("\to = remain/goal state")
+    print("\tRt = move right")
+    print("\tDn = move down")
+    print("\tLt = move left")
+    print("\tUp = move up")
+    print("\tSt = remain/goal state")
     plot_visits()
     print("DONE")
 
