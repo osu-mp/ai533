@@ -7,6 +7,7 @@ import random
 
 # AI 533 - HW2 - Gridworld Episodes
 # Matthew Pacey
+# Run this file directly to generate 30 episodes (printout) and histogram (png)
 
 # format the output of numpy array printing
 np.set_printoptions(precision=4)
@@ -142,6 +143,7 @@ def run_episode(ep_num):
     # print(f"Episode {ep_num + 1}: {{{','.join(sequences)}}} (total reward {total_reward})")
     print(f"{ep_num + 1} &  \\{{{','.join(sequences)}\\}} \\\\")
 
+
 def convert_xy_to_state_num(x, y):
     """
     Given an x, y coord, return the state this corresponds to.
@@ -152,6 +154,7 @@ def convert_xy_to_state_num(x, y):
     """
     num = x * 4 + y
     return f"s{num}"
+
 
 def get_state_str(x, y):
     num = x * 4 + y
@@ -169,6 +172,7 @@ def get_move_string(action):
         return mapping[action]
     raise Exception(f"Bad move: {action}")
 
+
 def plot_visits():
     """
     Create histogram showing number of times each state was visited
@@ -183,6 +187,7 @@ def plot_visits():
     fname = "gridworld-hist.png"
     plt.savefig(fname)
     print(f"Histogram saved to {fname}")
+
 
 def main():
     """
