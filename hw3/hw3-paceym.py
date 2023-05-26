@@ -8,8 +8,6 @@ import random
 # Matthew Pacey
 # TODO : add running instructions
 
-# TODO : update epsilon greedy policy calculation
-
 # format the output of numpy array printing
 np.set_printoptions(precision=4)
 np.set_printoptions(suppress=True)
@@ -18,9 +16,10 @@ np.set_printoptions(suppress=True)
 DEBUG = False
 
 gamma = 0.95
-alpha = 0.05 # TODO
-epsilon = 0.35  # TODO
+alpha = 0.05
+epsilon = 0.08
 NUM_EPISODES = 100
+NUM_TRIALS = 100
 MAX_STEPS = 1000
 
 actions = ['^', '>', 'v', '<']
@@ -54,7 +53,7 @@ def get_init_q():
     for x in range(4):
         for y in range(4):
             for a in actions:
-                q[((x, y), a)] = -1
+                q[((x, y), a)] = 0
 
     return q
 
@@ -163,111 +162,112 @@ def SARSA():
 
     :return:
     """
-    # init q(s,a)
-    q = get_init_q()
-    all_rewards = []
+    all_trials = []
 
-    for ep in range(NUM_EPISODES):
-        s = (0, 0)
-        a = policy[s[0]][s[1]]
-        # a = get_epsilon_greedy_action(q, s)
-        reward = 0
-        for step in range(MAX_STEPS):
-            if DEBUG:
-                print(f"{step}: {s=}")
-            # take action a, observe R, s'
-            #a = get_epsilon_greedy_action(q, s)
-            s_prime = move_action(s, a)
-            r = rewards[s_prime[0]][s_prime[1]]
+    for trial in range(NUM_TRIALS):
+        trial_rewards = []
+        q = get_init_q()
 
-            # choose a' from s' using epsilon greedy policy
-            a_prime = get_epsilon_greedy_action(q, s_prime)
-            # r = rewards[s[0]][s[1]]
-            reward += r
-            q[(s, a)] = q[(s, a)] + alpha * (r + gamma * q[(s_prime, a_prime)] - q[(s, a)])
-            s = s_prime
-            a = a_prime
-            if s == (3, 3):
+        for ep in range(NUM_EPISODES):
+            s = (0, 0)
+            a = policy[s[0]][s[1]]
+            # a = get_epsilon_greedy_action(q, s)
+            reward = 0
+            for step in range(MAX_STEPS):
                 if DEBUG:
-                    print(f"GOAL ({step} steps)")
-                # reward += rewards[3][3]
-                all_rewards.append(reward)
-                break
+                    print(f"{step}: {s=}")
+                # take action a, observe R, s'
+                #a = get_epsilon_greedy_action(q, s)
+                s_prime = move_action(s, a)
+                r = rewards[s_prime[0]][s_prime[1]]
 
-    print(all_rewards)
+                # choose a' from s' using epsilon greedy policy
+                a_prime = get_epsilon_greedy_action(q, s_prime)
+                # r = rewards[s[0]][s[1]]
+                reward += r
+                q[(s, a)] = q[(s, a)] + alpha * (r + gamma * q[(s_prime, a_prime)] - q[(s, a)])
+                s = s_prime
+                a = a_prime
+                if s == (3, 3):
+                    if DEBUG:
+                        print(f"GOAL ({step} steps)")
+                    # reward += rewards[3][3]
+                    trial_rewards.append(reward)
+                    break
 
-    print(f"SARSA: Avg. reward {np.average(all_rewards)}, stdev {np.std(all_rewards)}")
-    return all_rewards
+        all_trials.append(trial_rewards)
+    # print(f"SARSA: Avg. reward {np.average(all_rewards)}, stdev {np.std(all_rewards)}")
+    return all_trials
 
 def q_learning():
-    # init q(s,a)
-    q = get_init_q()
-    all_rewards = []
+    all_trials = []
 
-    for ep in range(NUM_EPISODES):
-        s = (0, 0)
-        a = policy[s[0]][s[1]]
-        reward = 0
-        for step in range(MAX_STEPS):
-            if DEBUG:
-                print(f"{step}: {s=}")
-            # take action a, observe R, s'
-            a = get_epsilon_greedy_action(q, s)
-            s_prime = move_action(s, a)
-            r = rewards[s_prime[0]][s_prime[1]]
+    for trial in range(NUM_TRIALS):
+        trial_rewards = []
+        q = get_init_q()
 
-            # get max reward from s_prime
-            desired_action, s_prime_val = get_max_q_value(q, s_prime)
-            # r = rewards[s[0]][s[1]]
-            reward += r
-            q[(s, a)] = q[(s, a)] + alpha * (r + gamma * s_prime_val - q[(s, a)])
-            s = s_prime
-            if s == (3, 3):
+        for ep in range(NUM_EPISODES):
+            s = (0, 0)
+            a = policy[s[0]][s[1]]
+            reward = 0
+            for step in range(MAX_STEPS):
                 if DEBUG:
-                    print(f"GOAL ({step} steps)")
-                all_rewards.append(reward)
-                break
+                    print(f"{step}: {s=}")
+                # take action a, observe R, s'
+                a = get_epsilon_greedy_action(q, s)
+                s_prime = move_action(s, a)
+                r = rewards[s_prime[0]][s_prime[1]]
 
-    print(all_rewards)
-    print(f"Q-Learning: Avg. reward {np.average(all_rewards)}, stdev {np.std(all_rewards)}")
-    return all_rewards
+                # get max reward from s_prime
+                desired_action, s_prime_val = get_max_q_value(q, s_prime)
+                # r = rewards[s[0]][s[1]]
+                reward += r
+                q[(s, a)] = q[(s, a)] + alpha * (r + gamma * s_prime_val - q[(s, a)])
+                s = s_prime
+                if s == (3, 3):
+                    if DEBUG:
+                        print(f"GOAL ({step} steps)")
+                    trial_rewards.append(reward)
+                    break
+
+        all_trials.append(trial_rewards)
+
+        # print(f"Q-Learning: Avg. reward {np.average(all_rewards)}, stdev {np.std(all_rewards)}")
+    return all_trials
 
 
-def plot(sarsa_rewards, ql_rewards):
-    # create plot of reward per episode for both algos
+def plot_trials(sarsa, ql):
     plt.clf()
-    plt.title(f"Rewards for {len(sarsa_rewards)} Episodes")
-    plt.plot(sarsa_rewards, label='SARSA')
-    plt.plot(ql_rewards, label='Q-Learning')
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
-    plt.legend()
-    fname = f"rewards.png"
+    plt.title("Average Rewards Per Episode")
+    plt.xlabel("Episode Number")
+    plt.ylabel("Average Reward (with Error Bars)")
+
+    sarsa = np.array(sarsa)
+    ql = np.array(ql)
+
+    sarsa_y, sarsa_err = [], []
+    ql_y, ql_err = [], []
+    print(f"{len(sarsa)},{len(sarsa[0])}")
+    for ep in range(NUM_EPISODES):
+        sarsa_y.append(np.average(sarsa[:,ep]))
+        sarsa_err.append(np.std(sarsa[:,ep]))
+
+        ql_y.append(np.average(ql[:, ep]))
+        ql_err.append(np.std(ql[:, ep]))
+
+    # plt.errorbar(list(range(1, NUM_EPISODES + 1)), sarsa_y, sarsa_err, label="SARSA", color='red')
+    plt.errorbar(list(range(1, NUM_EPISODES+1)), ql_y, ql_err, label="Q-Learning", color='blue')
+    plt.errorbar(list(range(1, NUM_EPISODES+1)), sarsa_y, sarsa_err, label="SARSA", color='red')
+
+    plt.legend(loc='lower right', title='Algorithm')
+
+    fname = "averages.png"
     plt.savefig(fname)
-    print(f"Saved episode info to {fname}")
-
-    # create plot of average and stdev for each algo
-    plt.clf()
-    plt.title("Average and Error Bars Per Algorithm")
-
-    x = np.array(["SARSA", "Q-Learning"])
-    plt.xlabel("Algorithm")
-    plt.ylabel("Reward")
-
-    y = np.array([np.average(sarsa_rewards), np.average(ql_rewards)])  # Effectively y = x**2
-    e = np.array([np.std(sarsa_rewards), np.std(ql_rewards)])
-
-    # plt.errorbar(x, y, e, fmt='.k')#linestyle='None', marker='^')
-    plt.bar(x, y, yerr=e, align='center', alpha=0.5, ecolor='black', capsize=10)
-
-    fname = "error-bars.png"
-    plt.savefig(fname)
-    print(f"Saved average/stdev info to {fname}")
-
+    print(f"Plot saved to {fname}")
 def main():
     sarsa_rewards = SARSA()
     ql_rewards = q_learning()
-    plot(sarsa_rewards, ql_rewards)
+    plot_trials(sarsa_rewards, ql_rewards)
 
 
 if __name__ == '__main__':
