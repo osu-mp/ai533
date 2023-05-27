@@ -4,10 +4,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 
-# AI 533 - HW3 - SARSA and Q-learning
-# Matthew Pacey
-# TODO : add running instructions
-
+"""
+AI 533 - HW3 - SARSA and Q-learning
+Matthew Pacey
+README: just run this script directly, it will pick the hyperparams 
+and generate a plot of the performance of the two algorithms in the gridworld example
+"""
 # format the output of numpy array printing
 np.set_printoptions(precision=4)
 np.set_printoptions(suppress=True)
@@ -15,10 +17,10 @@ np.set_printoptions(suppress=True)
 # my debug helper: if true, gridworld values printed at each timestep; if false only final values printed
 DEBUG = False
 
-gamma = 0.95
-NUM_EPISODES = 100
-NUM_TRIALS = 100
-MAX_STEPS = 1000
+gamma = 0.95                # future reward discount
+NUM_EPISODES = 100          # episode count in each trial
+NUM_TRIALS = 100            # number of trials to run
+MAX_STEPS = 1000            # stop episodes that do not reach goal before this many steps
 
 actions = ['^', '>', 'v', '<']
 
@@ -157,7 +159,7 @@ def get_max_q_value(q, s):
 
 def SARSA(alpha, epsilon):
     """
-
+    Run the SARSA (state action reward, state action) algo
     :return:
     """
     all_trials = []
@@ -169,19 +171,17 @@ def SARSA(alpha, epsilon):
         for ep in range(NUM_EPISODES):
             s = (0, 0)
             a = policy[s[0]][s[1]]
-            # a = get_epsilon_greedy_action(q, s)
+
             reward = 0
             for step in range(MAX_STEPS):
                 if DEBUG:
                     print(f"{step}: {s=}")
                 # take action a, observe R, s'
-                #a = get_epsilon_greedy_action(q, s)
                 s_prime = move_action(s, a)
                 r = rewards[s_prime[0]][s_prime[1]]
 
                 # choose a' from s' using epsilon greedy policy
                 a_prime = get_epsilon_greedy_action(q, s_prime, epsilon)
-                # r = rewards[s[0]][s[1]]
                 reward += r
                 q[(s, a)] = q[(s, a)] + alpha * (r + gamma * q[(s_prime, a_prime)] - q[(s, a)])
                 s = s_prime
@@ -189,15 +189,19 @@ def SARSA(alpha, epsilon):
                 if s == (3, 3):
                     if DEBUG:
                         print(f"GOAL ({step} steps)")
-                    # reward += rewards[3][3]
                     trial_rewards.append(reward)
                     break
 
         all_trials.append(trial_rewards)
-    # print(f"SARSA: Avg. reward {np.average(all_rewards)}, stdev {np.std(all_rewards)}")
     return all_trials
 
 def q_learning(alpha, epsilon):
+    """
+    Run the q-learning algo in gridworld
+    :param alpha:
+    :param epsilon:
+    :return:
+    """
     all_trials = []
 
     for trial in range(NUM_TRIALS):
@@ -218,7 +222,6 @@ def q_learning(alpha, epsilon):
 
                 # get max reward from s_prime
                 desired_action, s_prime_val = get_max_q_value(q, s_prime)
-                # r = rewards[s[0]][s[1]]
                 reward += r
                 q[(s, a)] = q[(s, a)] + alpha * (r + gamma * s_prime_val - q[(s, a)])
                 s = s_prime
@@ -230,13 +233,12 @@ def q_learning(alpha, epsilon):
 
         all_trials.append(trial_rewards)
 
-        # print(f"Q-Learning: Avg. reward {np.average(all_rewards)}, stdev {np.std(all_rewards)}")
     return all_trials
 
 
-def plot_trials(sarsa, ql):
+def plot_trials(sarsa, ql, alpha, epsilon):
     plt.clf()
-    plt.title("Average Rewards Per Episode")
+    plt.title(f"Average Rewards ($\\alpha$={alpha}, $\epsilon$={epsilon})")
     plt.xlabel("Episode Number")
     plt.ylabel("Average Reward (with Error Bars)")
 
@@ -245,7 +247,6 @@ def plot_trials(sarsa, ql):
 
     sarsa_y, sarsa_err = [], []
     ql_y, ql_err = [], []
-    print(f"{len(sarsa)},{len(sarsa[0])}")
     for ep in range(NUM_EPISODES):
         sarsa_y.append(np.average(sarsa[:,ep]))
         sarsa_err.append(np.std(sarsa[:,ep]))
@@ -253,15 +254,16 @@ def plot_trials(sarsa, ql):
         ql_y.append(np.average(ql[:, ep]))
         ql_err.append(np.std(ql[:, ep]))
 
-    # plt.errorbar(list(range(1, NUM_EPISODES + 1)), sarsa_y, sarsa_err, label="SARSA", color='red')
-    plt.errorbar(list(range(1, NUM_EPISODES+1)), ql_y, ql_err, label="Q-Learning", color='blue')
-    plt.errorbar(list(range(1, NUM_EPISODES+1)), sarsa_y, sarsa_err, label="SARSA", color='red')
+    # make the bottom line wider since both plots overlap a lot
+    plt.errorbar(list(range(NUM_EPISODES)), ql_y, ql_err, label="Q-Learning", color='blue', elinewidth=2.2)
+    plt.errorbar(list(range(NUM_EPISODES)), sarsa_y, sarsa_err, label="SARSA", color='red', elinewidth=1.1)
 
     plt.legend(loc='lower right', title='Algorithm')
 
     fname = "averages.png"
-    plt.savefig(fname)
+    plt.savefig(fname, dpi=250)
     print(f"Plot saved to {fname}")
+
 
 def tune_hyperparams():
     """
@@ -271,23 +273,23 @@ def tune_hyperparams():
     """
     best_alpha, best_epsilon = 0, 0
     max_value = float('-inf')
+    print("Determining optimal hyperparams")
 
-    for alpha in [0.0001, 0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3]:
-        for epsilon in [0.001, 0.005, 0.01, 0.03, 0.05, 0.1, 0.2, 0.3, 0.4]:
+    for alpha in [0.0001, 0.001, 0.01, 0.1, 0.15, 0.17, 0.2, 0.25, 0.3]:
+        for epsilon in [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3]:
 
             sarsa = np.average(SARSA(alpha, epsilon))
             ql = np.average(q_learning(alpha, epsilon))
+            average = np.average([sarsa, ql])
 
-            average = (sarsa + ql) / 2
-            if DEBUG:
-                print(f"{alpha=},{epsilon=} : {average}")
+            print(f"{alpha=:0.4f}, {epsilon=:0.4f} : Avg. reward {average:2.4f}")
             if average > max_value:
                 max_value = average
                 best_alpha, best_epsilon = alpha, epsilon
 
 
-    print(f"Highest average: {best_alpha=},{best_epsilon=},{max_value}")
-    return alpha, epsilon
+    print(f"\nHighest average: {best_alpha=},{best_epsilon=},{max_value}\n")
+    return best_alpha, best_epsilon
 
 
 def main():
@@ -295,7 +297,7 @@ def main():
 
     sarsa_rewards = SARSA(alpha, epsilon)
     ql_rewards = q_learning(alpha, epsilon)
-    plot_trials(sarsa_rewards, ql_rewards)
+    plot_trials(sarsa_rewards, ql_rewards, alpha, epsilon)
 
 
 if __name__ == '__main__':
