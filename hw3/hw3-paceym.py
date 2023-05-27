@@ -16,8 +16,6 @@ np.set_printoptions(suppress=True)
 DEBUG = False
 
 gamma = 0.95
-alpha = 0.05
-epsilon = 0.08
 NUM_EPISODES = 100
 NUM_TRIALS = 100
 MAX_STEPS = 1000
@@ -115,7 +113,7 @@ def move_action(s, action):
     return x, y
 
 
-def get_epsilon_greedy_action(q, s):
+def get_epsilon_greedy_action(q, s, epsilon):
     """
     Give q-values and state, determine action using epsilon-greedy policy
     :param q:
@@ -157,7 +155,7 @@ def get_max_q_value(q, s):
     return action, max_value
 
 
-def SARSA():
+def SARSA(alpha, epsilon):
     """
 
     :return:
@@ -182,7 +180,7 @@ def SARSA():
                 r = rewards[s_prime[0]][s_prime[1]]
 
                 # choose a' from s' using epsilon greedy policy
-                a_prime = get_epsilon_greedy_action(q, s_prime)
+                a_prime = get_epsilon_greedy_action(q, s_prime, epsilon)
                 # r = rewards[s[0]][s[1]]
                 reward += r
                 q[(s, a)] = q[(s, a)] + alpha * (r + gamma * q[(s_prime, a_prime)] - q[(s, a)])
@@ -199,7 +197,7 @@ def SARSA():
     # print(f"SARSA: Avg. reward {np.average(all_rewards)}, stdev {np.std(all_rewards)}")
     return all_trials
 
-def q_learning():
+def q_learning(alpha, epsilon):
     all_trials = []
 
     for trial in range(NUM_TRIALS):
@@ -214,7 +212,7 @@ def q_learning():
                 if DEBUG:
                     print(f"{step}: {s=}")
                 # take action a, observe R, s'
-                a = get_epsilon_greedy_action(q, s)
+                a = get_epsilon_greedy_action(q, s, epsilon)
                 s_prime = move_action(s, a)
                 r = rewards[s_prime[0]][s_prime[1]]
 
@@ -264,9 +262,39 @@ def plot_trials(sarsa, ql):
     fname = "averages.png"
     plt.savefig(fname)
     print(f"Plot saved to {fname}")
+
+def tune_hyperparams():
+    """
+    Rough way to estimate hyperparams:
+    Take average of all trials/episodes across both algos and use the combo with the highest average
+    :return:
+    """
+    best_alpha, best_epsilon = 0, 0
+    max_value = float('-inf')
+
+    for alpha in [0.0001, 0.001, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3]:
+        for epsilon in [0.001, 0.005, 0.01, 0.03, 0.05, 0.1, 0.2, 0.3, 0.4]:
+
+            sarsa = np.average(SARSA(alpha, epsilon))
+            ql = np.average(q_learning(alpha, epsilon))
+
+            average = (sarsa + ql) / 2
+            if DEBUG:
+                print(f"{alpha=},{epsilon=} : {average}")
+            if average > max_value:
+                max_value = average
+                best_alpha, best_epsilon = alpha, epsilon
+
+
+    print(f"Highest average: {best_alpha=},{best_epsilon=},{max_value}")
+    return alpha, epsilon
+
+
 def main():
-    sarsa_rewards = SARSA()
-    ql_rewards = q_learning()
+    alpha, epsilon = tune_hyperparams()
+
+    sarsa_rewards = SARSA(alpha, epsilon)
+    ql_rewards = q_learning(alpha, epsilon)
     plot_trials(sarsa_rewards, ql_rewards)
 
 
