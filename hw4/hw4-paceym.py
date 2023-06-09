@@ -308,10 +308,9 @@ def tune_hyperparams():
     max_value = float('-inf')
     print("Determining optimal hyperparams")
 
-    for alpha in [0.0001, 0.01, 0.1, 0.2, 0.35, 0.5]:
-        for epsilon in [0.0001, 0.01, 0.1, 0.2, 0.35, 0.5]:
+    for alpha in [0.05, 0.17, 0.34]: # [0.0001, 0.01]:#, 0.1, 0.2, 0.35, 0.5]:
+        for epsilon in [0.0001, 0.1, 0.2]:#, 0.1, 0.2, 0.35, 0.5]:
             for lam in [0, 0.05, 0.1, 0.25, 0.5, 0.7, 0.9999]:
-
                 sarsa = np.average(SARSA_lambda(alpha, epsilon, lam))
                 ql = np.average(q_learning_lambda(alpha, epsilon, lam))
                 average = np.average([sarsa, ql])
