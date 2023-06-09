@@ -127,7 +127,7 @@ def get_epsilon_greedy_action(q, s, epsilon):
     if ep_val <= epsilon:           # choose random action
         desired_action = random.choice(actions)
     else:
-        desired_action, max_value = get_max_q_value(q, s)
+        desired_action = get_max_q_value(q, s)
 
     actual_action = get_move_dir(desired_action)
 
@@ -137,7 +137,7 @@ def get_epsilon_greedy_action(q, s, epsilon):
     return actual_action#, max_value
 
 
-def get_max_q_value(q, s):
+def get_max_q_value(q, s, a_prime=None):
     """
     Given a particular state, return the max q value over all actions
     :param s:
@@ -153,14 +153,17 @@ def get_max_q_value(q, s):
         elif value == max_value:
             poss_actions.append(action)
 
+    if a_prime and a_prime in poss_actions:
+        return a_prime
+
     action = random.choice(poss_actions)
-    return action, max_value
+    return action
 
 
 def SARSA_lambda(alpha, epsilon, lam):
     """
     Run the SARSA-lambda (state action reward, state action) algo
-    with eligibility traces
+    with eligibility traces (backward view, accumulating)
     :return:
     """
     all_trials = []
@@ -186,8 +189,19 @@ def SARSA_lambda(alpha, epsilon, lam):
                 a_prime = get_epsilon_greedy_action(q, s_prime, epsilon)
                 reward += r
                 delta = r + gamma * q[(s_prime, a_prime)] - q[(s, a)]
-                import pdb; pdb.set_trace()
-                q[(s, a)] = q[(s, a)] + alpha * delta
+                # print(f"{s=}, {a=}, {delta=}, {gamma=}")
+                # print(f"e before:\n{e}")
+                e[s, a] += 1
+                # print(f"e after:\n{e}")
+
+                # print(f"q before:\n{q}")
+                for x in range(4):
+                    for y in range(4):
+                        for act in actions:
+                            q[((x, y), act)] += alpha * delta * e[((x, y), act)]
+                            e[((x, y), act)] *= gamma * lam
+                # print(f"q after:\n{q}")
+                # print(f"e after update:\n{q}")
                 s = s_prime
                 a = a_prime
                 if s == (3, 3):
@@ -199,9 +213,10 @@ def SARSA_lambda(alpha, epsilon, lam):
         all_trials.append(trial_rewards)
     return all_trials
 
-def q_learning(alpha, epsilon):
+def q_learning_lambda(alpha, epsilon, lam):
     """
-    Run the q-learning algo in gridworld
+    Run the q-learning-lambda algo in gridworld
+    with eligibility traces (backward view, accumulating)
     :param alpha:
     :param epsilon:
     :return:
@@ -211,6 +226,7 @@ def q_learning(alpha, epsilon):
     for trial in range(NUM_TRIALS):
         trial_rewards = []
         q = get_init_q()
+        e = get_init_q()
 
         for ep in range(NUM_EPISODES):
             s = (0, 0)
@@ -220,15 +236,28 @@ def q_learning(alpha, epsilon):
                 if DEBUG:
                     print(f"{step}: {s=}")
                 # take action a, observe R, s'
-                a = get_epsilon_greedy_action(q, s, epsilon)
                 s_prime = move_action(s, a)
                 r = rewards[s_prime[0]][s_prime[1]]
 
-                # get max reward from s_prime
-                desired_action, s_prime_val = get_max_q_value(q, s_prime)
+                a_prime = get_epsilon_greedy_action(q, s_prime, epsilon)
                 reward += r
-                q[(s, a)] = q[(s, a)] + alpha * (r + gamma * s_prime_val - q[(s, a)])
+
+                # get max reward from s_prime
+                a_star = get_max_q_value(q, s_prime, a_prime)
+                delta = r + gamma * q[(s_prime, a_star)] - q[s, a]
+                e[s, a] += 1
+
+                for x in range(4):
+                    for y in range(4):
+                        for act in actions:
+                            q[((x, y), act)] += alpha * delta * e[((x, y), act)]
+                            if a_prime == a_star:
+                                e[((x, y), act)] *= gamma * lam
+                            else:
+                                e[((x, y), act)] = 0
+
                 s = s_prime
+                a = a_prime
                 if s == (3, 3):
                     if DEBUG:
                         print(f"GOAL ({step} steps)")
@@ -240,9 +269,9 @@ def q_learning(alpha, epsilon):
     return all_trials
 
 
-def plot_trials(sarsa, ql, alpha, epsilon):
+def plot_trials(sarsa, ql, alpha, epsilon, lam):
     plt.clf()
-    plt.title(f"Average Rewards ($\\alpha$={alpha}, $\epsilon$={epsilon})")
+    plt.title(f"Average Rewards ($\\alpha$={alpha}, $\epsilon$={epsilon}, $\\lambda$={lam})")
     plt.xlabel("Episode Number")
     plt.ylabel("Average Reward (with Error Bars)")
 
@@ -264,7 +293,7 @@ def plot_trials(sarsa, ql, alpha, epsilon):
 
     plt.legend(loc='lower right', title='Algorithm')
 
-    fname = "averages.png"
+    fname = "hw4-paceym-results.png"
     plt.savefig(fname, dpi=250)
     print(f"Plot saved to {fname}")
 
@@ -279,32 +308,31 @@ def tune_hyperparams():
     max_value = float('-inf')
     print("Determining optimal hyperparams")
 
-    for alpha in [0.0001, 0.001, 0.01, 0.1, 0.15, 0.17, 0.2, 0.25, 0.3]:
-        for epsilon in [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3]:
-            for lam in [0, 0.25, 0.5, 0.9999]:
+    for alpha in [0.0001, 0.01, 0.1, 0.2, 0.35, 0.5]:
+        for epsilon in [0.0001, 0.01, 0.1, 0.2, 0.35, 0.5]:
+            for lam in [0, 0.05, 0.1, 0.25, 0.5, 0.7, 0.9999]:
 
                 sarsa = np.average(SARSA_lambda(alpha, epsilon, lam))
-                ql = np.average(q_learning(alpha, epsilon))
+                ql = np.average(q_learning_lambda(alpha, epsilon, lam))
                 average = np.average([sarsa, ql])
 
-                print(f"{alpha=:0.4f}, {epsilon=:0.4f} : Avg. reward {average:2.4f}")
+                print(f"{alpha=:0.4f}, {epsilon=:0.4f}, {lam=:0.4f} : Avg. reward {average:2.4f}")
                 if average > max_value:
                     max_value = average
-                    best_alpha, best_epsilon = alpha, epsilon
+                    best_alpha, best_epsilon, best_lambda = alpha, epsilon, lam
 
 
-    print(f"\nHighest average: {best_alpha=},{best_epsilon=},{max_value}\n")
+    print(f"\nHighest average: {best_alpha=},{best_epsilon=}, {best_lambda=},{max_value}\n")
     return best_alpha, best_epsilon, best_lambda
 
 
 def main():
-    # alpha, epsilon, lam = tune_hyperparams()
-    alpha, epsilon, lam = 0.17, 0.0001, 0.0
+    alpha, epsilon, lam = tune_hyperparams()
+    # alpha, epsilon, lam = 0.17, 0.0001, 0.99
 
     sarsa_rewards = SARSA_lambda(alpha, epsilon, lam)
-    return
-    ql_rewards = q_learning(alpha, epsilon)
-    plot_trials(sarsa_rewards, ql_rewards, alpha, epsilon)
+    ql_rewards = q_learning_lambda(alpha, epsilon, lam)
+    plot_trials(sarsa_rewards, ql_rewards, alpha, epsilon, lam)
 
 
 if __name__ == '__main__':
